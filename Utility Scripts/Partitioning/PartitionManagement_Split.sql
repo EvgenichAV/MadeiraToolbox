@@ -99,11 +99,13 @@ SELECT TOP (1)
 , @MaxPartitionRangeValue = rv.value
 , @MaxValueFromColumn = c.name
 , @MaxValueFromTable = QUOTENAME(OBJECT_SCHEMA_NAME(p.object_id)) + N'.' + QUOTENAME(OBJECT_NAME(p.object_id))
-, @PartitionKeyDataType = ISNULL(@PartitionKeyDataType, QUOTENAME(tp.[name])
+, @PartitionKeyDataType = ISNULL(@PartitionKeyDataType,   
+ CASE   
+ 	WHEN tp.[name] IN ('date','datetime2') THEN '[datetime]' 
+ 	ELSE QUOTENAME(tp.[name]) END
 + CASE
 	WHEN tp.name LIKE '%char' OR tp.name LIKE '%binary' THEN N'(' + ISNULL(CONVERT(nvarchar(MAX), NULLIF(params.max_length,-1)),'max') + N')'
 	WHEN tp.name IN ('decimal', 'numeric') THEN N'(' + CONVERT(nvarchar(MAX), params.precision) + N',' + CONVERT(nvarchar(MAX), params.scale) + N')'
-	WHEN tp.name IN ('datetime2','time') THEN N'(' + CONVERT(nvarchar(MAX), params.scale) + N')'
 	ELSE N''
   END)
 , @ExistingBuffer = ISNULL(p.partition_number - pdata.partition_number + 1, 0)
@@ -255,7 +257,7 @@ BEGIN
 			from sys.destination_data_spaces AS dds
 			inner join sys.data_spaces as fg on dds.data_space_id = fg.data_space_id
 			where dds.partition_scheme_id = ps.data_space_id
-			AND dds.destination_id < pf.fanout
+			AND dds.destination_id < pf.fanout + pf.boundary_value_on_right
 			order by dds.destination_id desc
 		) as dst
 		where ps.function_id = @PartitionFunctionId;
